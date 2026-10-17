@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inbox search by meaning</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #1d1d1f; }
+  input { width: 100%; font: inherit; padding: .6rem .8rem; border: 1px solid #bbb; border-radius: 8px; box-sizing: border-box; }
+  .row { padding: .6rem 0; border-bottom: 1px solid #eee; display: flex; gap: 1rem; }
+  .score { font-variant-numeric: tabular-nums; color: #666; min-width: 3.5rem; }
+  .from { font-weight: 600; }
+  #status { color: #666; margin: .5rem 0 1rem; }
+  h2 { margin-top: 2rem; font-size: 1.1rem; }
+  .group { margin: .5rem 0; padding: .6rem .8rem; background: #f5f5f7; border-radius: 8px; }
+</style>
+</head>
+<body>
+<h1>Inbox search by meaning</h1>
+<input id="q" placeholder="Search, e.g. boss" autofocus>
+<div id="status">Embedding the emails…</div>
+<div id="results"></div>
+<h2>Topics found on their own</h2>
+<div id="topics"></div>
+
+<script type="module">
+import { createIndex, groups } from 'https://cdn.jsdelivr.net/gh/ccmpm/session-9@main/lib/embed.js';
+
+const emails = [
+  { from: 'Sarah', subject: 'Your manager wants the report by Friday' },
+  { from: 'Tom', subject: 'Team lunch on Thursday, who is in?' },
+  { from: 'Priya', subject: 'The director asked for an update on the budget' },
+  { from: 'James', subject: 'Invoice 4471 is overdue' },
+  { from: 'Emma', subject: 'Payment received, thank you' },
+  { from: 'Oliver', subject: 'Pizza or burgers for the Friday party?' },
+  { from: 'Grace', subject: 'Reminder: performance review with your supervisor' },
+  { from: 'Daniel', subject: 'Refund for order 1182 has been sent' },
+  { from: 'Chloe', subject: 'Cake in the kitchen for Ben\'s birthday' },
+  { from: 'Henry', subject: 'The CEO will join the Monday meeting' },
+  { from: 'Lucy', subject: 'Your card was charged twice' },
+  { from: 'Jack', subject: 'Drinks after work tonight' },
+];
+
+const status = document.getElementById('status');
+const index = await createIndex(emails, {
+  text: (e) => e.subject,
+  onProgress: (done, total) => (status.textContent = `Embedding the emails… ${done} of ${total}`),
+});
+status.textContent = `${emails.length} emails ready. Type to search.`;
+window.index = index;
+
+const results = document.getElementById('results');
+const show = (rows) => {
+  results.innerHTML = '';
+  for (const { item, score } of rows) {
+    const div = document.createElement('div');
+    div.className = 'row';
+    div.innerHTML = `<span class="score">${score.toFixed(2)}</span><span><span class="from"></span>: <span class="subject"></span></span>`;
+    div.querySelector('.from').textContent = item.from;
+    div.querySelector('.subject').textContent = item.subject;
+    results.append(div);
+  }
+};
+
+let timer;
+document.getElementById('q').addEventListener('input', (e) => {
+  clearTimeout(timer);
+  const q = e.target.value.trim();
+  if (!q) return show([]);
+  timer = setTimeout(async () => show(await index.search(q, 4)), 300);
+});
+
+const topics = document.getElementById('topics');
+for (const g of groups(index.vectors, 3)) {
+  const div = document.createElement('div');
+  div.className = 'group';
+  div.textContent = g.map((i) => emails[i].subject).join(' · ');
+  topics.append(div);
+}
+</script>
+</body>
+</html>
